@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="ariaGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7c3aed" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="#080818" />
+  <circle cx="32" cy="32" r="24" fill="url(#ariaGrad)" opacity="0.2" />
+  <rect x="25" y="16" width="14" height="22" rx="7" fill="url(#ariaGrad)" />
+  <path
+    d="M19 31c0 7.18 5.82 13 13 13s13-5.82 13-13M32 44v6M26 50h12"
+    stroke="url(#ariaGrad)"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+</svg>
+
