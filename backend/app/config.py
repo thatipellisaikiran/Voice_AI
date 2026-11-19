@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # Groq (Free LLM)
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
 
     # Whisper STT (Local)
     whisper_model_size: str = "base"  # tiny | base | small | tiny.en
