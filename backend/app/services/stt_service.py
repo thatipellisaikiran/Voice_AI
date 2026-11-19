@@ -32,24 +32,25 @@ class STTService:
             return
 
         loop = asyncio.get_running_loop()
+        model_name = settings.effective_whisper_model
         logger.info(
             "Loading faster-whisper model '%s' on device '%s'...",
-            settings.whisper_model_size,
+            model_name,
             settings.whisper_device,
         )
         try:
             compute_type = "int8" if settings.whisper_device == "cpu" else "float16"
 
             def _load():
-                cache_dir = os.path.expanduser(f"~/.cache/faster-whisper/{settings.whisper_model_size}")
+                cache_dir = os.path.expanduser(f"~/.cache/faster-whisper/{model_name}")
                 if os.path.exists(os.path.join(cache_dir, "model.bin")):
                     model_path = cache_dir
                 else:
                     os.makedirs(cache_dir, exist_ok=True)
                     try:
-                        model_path = download_model(settings.whisper_model_size, output_dir=cache_dir)
+                        model_path = download_model(model_name, output_dir=cache_dir)
                     except Exception:
-                        model_path = settings.whisper_model_size
+                        model_path = model_name
                 return WhisperModel(
                     model_path,
                     device=settings.whisper_device,
