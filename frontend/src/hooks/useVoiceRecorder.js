@@ -13,7 +13,7 @@ function pickSupportedMimeType() {
 
 export function useVoiceRecorder({
   silenceThreshold = 12,
-  silenceDurationMs = 600,
+  silenceDurationMs = 380,
   onSpeechDetected = null,
 } = {}) {
   const [isRecording, setIsRecording] = useState(false);
@@ -194,7 +194,7 @@ export function useVoiceRecorder({
         if (!analyser) return;
 
         const freqData = new Uint8Array(analyser.frequencyBinCount);
-        const maxSilenceTicks = Math.max(5, Math.round(silenceDurationMs / 100)); // ~500-600ms
+        const maxSilenceTicks = Math.max(3, Math.round(silenceDurationMs / 100)); // ~350-380ms
 
         vadIntervalRef.current = setInterval(() => {
           analyser.getByteFrequencyData(freqData);

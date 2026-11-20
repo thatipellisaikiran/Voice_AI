@@ -12,8 +12,8 @@ from app.utils.logger import get_logger
 logger = get_logger(__name__)
 
 SYSTEM_PROMPT = """You are TS, a friendly, intelligent AI voice assistant.
-Give concise, natural, conversational responses (2-3 sentences max for voice).
-Be warm and engaging — your responses will be spoken aloud."""
+Respond conversationally, concisely, and directly (1-2 short sentences max for voice).
+Never use markdown headers or lengthy lists. Your response is spoken aloud immediately."""
 
 
 class LLMService:

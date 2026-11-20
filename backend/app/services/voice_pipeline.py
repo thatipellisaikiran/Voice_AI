@@ -12,7 +12,7 @@ from app.memory.sqlite_memory import memory_manager
 from app.services.llm_service import llm_service
 from app.services.stt_service import stt_service
 from app.services.tts_service import tts_service
-from app.utils.audio import mp3_to_base64, validate_audio
+from app.utils.audio import mp3_to_base64, prepare_speech_audio, validate_audio
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,7 +56,7 @@ class VoicePipeline:
         t_user_stopped = time.perf_counter()
 
         try:
-            is_valid = await validate_audio(audio_bytes)
+            wav_bytes, is_valid = await prepare_speech_audio(audio_bytes)
         except Exception as exc:
             logger.warning("Audio validation failed for session=%s: %s", session_id, exc)
             await self._send_json(
@@ -65,7 +65,7 @@ class VoicePipeline:
             )
             return
 
-        if not is_valid:
+        if not is_valid or not wav_bytes:
             await self._send_json(
                 ws,
                 {"type": "error", "message": "Transcription failed: audio too short or silent"},
@@ -73,7 +73,7 @@ class VoicePipeline:
             return
 
         try:
-            stt_result = await stt_service.transcribe(audio_bytes, language=language)
+            stt_result = await stt_service.transcribe(wav_bytes, language=language)
         except Exception as exc:
             logger.error("STT error for session=%s: %s", session_id, exc)
             await self._send_json(
@@ -175,16 +175,13 @@ class VoicePipeline:
                             },
                         )
 
-                        # Stream audio chunks for this sentence
-                        async for chunk in tts_service.stream_sentence_audio(
-                            sentence_text, language=language
-                        ):
-                            if self._is_interrupted(session_id):
-                                break
+                        # Synthesize complete, clean sentence MP3 with Edge Neural TTS
+                        mp3_bytes = await tts_service.synthesize(sentence_text, language=language)
+                        if mp3_bytes and not self._is_interrupted(session_id):
                             if t_first_audio is None:
                                 t_first_audio = time.perf_counter()
 
-                            b64 = await mp3_to_base64(chunk)
+                            b64 = await mp3_to_base64(mp3_bytes)
                             await self._send_json(
                                 ws,
                                 {

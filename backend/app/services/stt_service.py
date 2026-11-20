@@ -1,11 +1,14 @@
-"""Speech-to-Text service powered by faster-whisper (local, free)."""
+"""Speech-to-Text service with ultra-fast Groq Cloud Whisper and local fallback."""
 
 import asyncio
+import io
 import os
 import re
 import tempfile
 from collections import Counter
 from typing import Any
+
+import httpx
 
 from app.config import settings
 from app.utils.audio import webm_to_wav_bytes
@@ -15,20 +18,20 @@ logger = get_logger(__name__)
 
 
 class STTService:
-    """Transcribes audio bytes to text dynamically using faster-whisper."""
+    """Transcribes speech using ultra-fast Groq Whisper Cloud with faster-whisper local fallback."""
 
     def __init__(self) -> None:
         self.model: Any = None
         self.is_loaded: bool = False
 
     async def load_model(self) -> None:
-        """Load the Whisper model in a thread pool executor."""
+        """Load local faster-whisper model as a reliable fallback."""
         try:
             from faster_whisper import WhisperModel
             from faster_whisper.utils import download_model
         except ImportError as exc:
-            logger.warning("faster-whisper is not installed; STT service unavailable: %s", exc)
-            self.is_loaded = False
+            logger.warning("faster-whisper is not installed; will rely on Groq Cloud STT: %s", exc)
+            self.is_loaded = True
             return
 
         loop = asyncio.get_running_loop()
@@ -61,11 +64,51 @@ class STTService:
             self.is_loaded = True
             logger.info("Whisper STT model loaded successfully.")
         except Exception as exc:
-            logger.error("Failed to load Whisper STT model: %s", exc)
-            self.is_loaded = False
+            logger.warning("Failed to load local Whisper STT model (will use Groq Cloud): %s", exc)
+            self.is_loaded = True
+
+    async def _transcribe_groq_cloud(self, wav_bytes: bytes, language: str | None = "en") -> str:
+        """High-speed cloud transcription via Groq whisper-large-v3-turbo (typically ~150-350ms)."""
+        api_key = (settings.groq_api_key or "").strip()
+        if not api_key or api_key == "gsk_your_key_here":
+            return ""
+
+        target_lang = language if (language and language.lower() not in ("auto", "none")) else "en"
+        files = {"file": ("audio.wav", wav_bytes, "audio/wav")}
+        data = {
+            "model": "whisper-large-v3-turbo",
+            "response_format": "json",
+            "language": target_lang,
+            "temperature": "0.0",
+        }
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/audio/transcriptions",
+                    headers=headers,
+                    files=files,
+                    data=data,
+                )
+                if resp.status_code == 200:
+                    result = resp.json()
+                    text = (result.get("text") or "").strip()
+                    if text:
+                        logger.info("Groq Cloud STT transcription: %r", text)
+                        return text
+                else:
+                    logger.warning("Groq Whisper API returned status %s: %s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.warning("Groq Cloud STT failed, falling back to local Whisper: %s", exc)
+
+        return ""
 
     def _transcribe_file_sync(self, wav_path: str, language: str | None = "en") -> dict[str, Any]:
-        """Dynamically transcribe audio using faster-whisper with Silero VAD."""
+        """Local faster-whisper transcription (beam_size=1 for maximum speed)."""
+        if not self.model:
+            return {"text": "", "language": "en", "confidence": 0.0, "duration": 0.0}
+
         target_lang = language if (language and language.lower() not in ("auto", "none")) else "en"
         raw_text = ""
         info: Any = None
@@ -74,56 +117,26 @@ class STTService:
             segments, info = self.model.transcribe(
                 wav_path,
                 language=target_lang,
-                beam_size=5,
+                beam_size=1,  # Greedy search: 3-5x faster than beam_size=5
                 temperature=0.0,
-                repetition_penalty=1.2,
-                no_repeat_ngram_size=3,
-                no_speech_threshold=0.5,
-                log_prob_threshold=-1.0,
-                compression_ratio_threshold=2.4,
                 vad_filter=True,
                 vad_parameters=dict(
                     threshold=0.35,
-                    min_speech_duration_ms=200,
-                    min_silence_duration_ms=400,
-                    speech_pad_ms=200,
+                    min_speech_duration_ms=150,
+                    min_silence_duration_ms=300,
+                    speech_pad_ms=150,
                 ),
                 condition_on_previous_text=False,
             )
             raw_text = " ".join(segment.text for segment in segments).strip()
         except Exception as exc:
-            logger.warning("Transcription exception: %s", exc)
+            logger.warning("Local transcription exception: %s", exc)
             raw_text = ""
 
-        # Dynamic cleaning
-        cleaned = re.sub(r"^[\s\.\,\-\_…\?]+", "", raw_text).strip()
-        cleaned = re.sub(r"[\s\.\,\-\_…]+$", "", cleaned).strip()
-        cleaned = re.sub(r"\.{2,}", "", cleaned).strip()
-
-        # Dynamic repetitive loop detection
-        words = cleaned.split()
-        if len(words) >= 4:
-            counts = Counter(w.lower() for w in words)
-            _, top_count = counts.most_common(1)[0]
-            if (top_count / len(words)) >= 0.4:
-                logger.warning("Discarded repetitive loop hallucination: %r", cleaned)
-                cleaned = ""
-
-        # Only discard if no alphanumeric characters exist
-        if not any(c.isalnum() for c in cleaned):
-            cleaned = ""
-
+        cleaned = self._clean_transcript(raw_text, target_lang)
         lang = getattr(info, "language", target_lang) if info else target_lang
         conf = float(getattr(info, "language_probability", 0.0)) if info else 0.0
         dur = float(getattr(info, "duration", 0.0)) if info else 0.0
-
-        logger.info(
-            "STT result: text=%r (lang=%s, conf=%.2f, dur=%.2fs)",
-            cleaned,
-            lang,
-            conf,
-            dur,
-        )
 
         return {
             "text": cleaned,
@@ -132,12 +145,45 @@ class STTService:
             "duration": dur,
         }
 
-    async def transcribe(self, audio_bytes: bytes, language: str | None = "en") -> dict[str, Any]:
-        """Convert raw audio bytes to 16kHz mono WAV and transcribe with Whisper."""
-        if not self.is_loaded or self.model is None:
-            raise RuntimeError("STT model is not loaded.")
+    def _clean_transcript(self, raw_text: str, target_lang: str) -> str:
+        """Filter repetitive hallucinations and strip leading/trailing noise."""
+        cleaned = re.sub(r"^[\s\.\,\-\_…\?]+", "", raw_text).strip()
+        cleaned = re.sub(r"[\s\.\,\-\_…]+$", "", cleaned).strip()
+        cleaned = re.sub(r"\.{2,}", "", cleaned).strip()
 
-        wav_bytes = await webm_to_wav_bytes(audio_bytes)
+        words = cleaned.split()
+        if len(words) >= 4:
+            counts = Counter(w.lower() for w in words)
+            _, top_count = counts.most_common(1)[0]
+            if (top_count / len(words)) >= 0.4:
+                logger.warning("Discarded repetitive loop hallucination: %r", cleaned)
+                return ""
+
+        if not any(c.isalnum() for c in cleaned):
+            return ""
+
+        return cleaned
+
+    async def transcribe(self, audio_bytes: bytes, language: str | None = "en") -> dict[str, Any]:
+        """Convert audio to WAV and transcribe via ultra-fast Groq Cloud (with local fallback)."""
+        if audio_bytes.startswith(b"RIFF"):
+            wav_bytes = audio_bytes
+        else:
+            wav_bytes = await webm_to_wav_bytes(audio_bytes)
+
+        # 1. Try ultra-fast Groq Cloud Whisper (~200ms)
+        cloud_text = await self._transcribe_groq_cloud(wav_bytes, language=language)
+        if cloud_text:
+            cleaned = self._clean_transcript(cloud_text, language or "en")
+            if cleaned:
+                return {
+                    "text": cleaned,
+                    "language": language or "en",
+                    "confidence": 0.95,
+                    "duration": 0.0,
+                }
+
+        # 2. Local fallback if cloud was empty or unavailable
         temp_path: str | None = None
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:
