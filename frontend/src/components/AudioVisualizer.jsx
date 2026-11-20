@@ -12,12 +12,16 @@ export function AudioVisualizer({ isActive, stream, isSpeaking = false }) {
     let analyser = null;
     let source = null;
 
-    // Support High DPI displays
+    // Support High DPI displays and responsive mobile viewports
     const dpr = window.devicePixelRatio || 1;
-    const displayWidth = 320;
-    const displayHeight = 44;
+    const isMobile = window.innerWidth <= 600;
+    const containerWidth = canvas.parentElement?.clientWidth || 320;
+    const displayWidth = Math.min(320, Math.max(200, containerWidth - 16));
+    const displayHeight = isMobile ? 26 : 44;
     canvas.width = displayWidth * dpr;
     canvas.height = displayHeight * dpr;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
     ctx.scale(dpr, dpr);
 
     const BAR_COUNT = 28;
@@ -118,7 +122,6 @@ export function AudioVisualizer({ isActive, stream, isSpeaking = false }) {
         className={`audio-visualizer ${isActive ? 'audio-visualizer--recording' : ''} ${
           isSpeaking ? 'audio-visualizer--speaking' : ''
         }`}
-        style={{ width: 320, height: 44 }}
         aria-label="Real-time live audio waveform"
       />
     </div>

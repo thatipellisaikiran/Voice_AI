@@ -531,7 +531,10 @@ export default function App() {
         <div className="brand">
           <div className="brand__logo-badge">TS</div>
           <div className="brand__title-row">
-            <h1 className="brand__title">TS Voice Assistant</h1>
+            <h1 className="brand__title">
+              <span className="brand__title-full">TS Voice Assistant</span>
+              <span className="brand__title-short">TS Voice</span>
+            </h1>
             <span
               className={`status-dot status-dot--${
                 connectionStatus === 'connected' ? 'connected' : 'reconnecting'
@@ -568,7 +571,7 @@ export default function App() {
             onClick={handleNewSession}
             aria-label="Start new chat"
           >
-            + New chat
+            + <span className="header-btn-text">New chat</span>
           </button>
           <button
             type="button"

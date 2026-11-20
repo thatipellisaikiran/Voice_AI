@@ -95,7 +95,12 @@ html,
 body,
 #root {
   height: 100%;
+  height: 100dvh;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
   width: 100%;
+  margin: 0;
+  padding: 0;
   overflow: hidden;
   font-family: var(--font-main);
   background-color: var(--bg-page);
@@ -105,14 +110,17 @@ body,
 }
 
 /* ==========================================================================
-   LAYOUT (Centered, Max-Width 900px, 100vh)
+   LAYOUT (Centered, Max-Width 900px, 100dvh Dynamic Viewport)
    ========================================================================== */
 .app-container {
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 900px;
+  height: 100%;
   height: 100vh;
+  height: 100dvh;
+  min-height: -webkit-fill-available;
   margin: 0 auto;
   background-color: var(--bg-container);
   border-left: 1px solid var(--border-subtle);
@@ -136,6 +144,7 @@ body,
   border-bottom: 1px solid rgba(220, 38, 38, 0.2);
   animation: slideDown 0.3s ease;
   z-index: 50;
+  flex-shrink: 0;
 }
 
 .reconnecting-dot {
@@ -156,14 +165,20 @@ body,
   padding: 10px 20px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-subtle);
-  min-height: 54px;
+  min-height: 52px;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+
+.brand__title-short {
+  display: none;
 }
 
 .brand__logo-badge {
@@ -285,8 +300,10 @@ body,
    CHAT AREA (Flex: 1, Scrolls, Auto-scrolls)
    ========================================================================== */
 .chat-area {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
@@ -707,11 +724,12 @@ body,
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 20px 20px;
+  padding: 12px 20px max(18px, env(safe-area-inset-bottom, 18px));
   background-color: var(--bg-card);
   border-top: 1px solid var(--border-subtle);
   position: relative;
   z-index: 10;
+  flex-shrink: 0;
 }
 
 /* Audio Visualizer Waveform */
@@ -1382,62 +1400,36 @@ body,
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN (down to 375px width mobile)
+   RESPONSIVE DESIGN (Full mobile adaptation down to 320px width & short heights)
    ========================================================================== */
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .app-container {
     max-width: 100%;
     border: none;
+    box-shadow: none;
   }
 
-  .chat-area {
-    padding: 14px 14px;
-  }
-
-  .message {
-    max-width: 90%;
-  }
-
-  .voice-orb-wrapper {
-    width: 110px;
-    height: 110px;
-  }
-
-  .voice-orb {
-    width: 110px;
-    height: 110px;
-  }
-
-  .listening-pulse {
-    width: 110px;
-    height: 110px;
-  }
-
-  .thinking-spin-ring {
-    width: 124px;
-    height: 124px;
-  }
-
-  .voice-panel {
-    padding: 10px 14px 14px;
-  }
-
-  .text-input-form {
-    max-width: 100%;
-  }
-
-  .settings-drawer {
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 375px) {
   .slim-header {
-    padding: 8px 12px;
+    padding: max(8px, env(safe-area-inset-top, 8px)) 12px 8px;
+    min-height: 48px;
+  }
+
+  .brand {
+    gap: 8px;
+  }
+
+  .brand__logo-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
   }
 
   .brand__title {
     font-size: 0.95rem;
+  }
+
+  .header-actions {
+    gap: 6px;
   }
 
   .header-btn {
@@ -1445,37 +1437,244 @@ body,
     font-size: 0.75rem;
   }
 
+  .header-btn--icon {
+    width: 30px;
+    height: 30px;
+    font-size: 0.95rem;
+  }
+
+  .latency-pill {
+    padding: 2px 6px;
+    font-size: 0.68rem;
+  }
+
+  .chat-area {
+    padding: 12px 12px 8px;
+  }
+
+  .chat-empty {
+    padding: 16px 8px;
+  }
+
+  .chat-empty__orb-hint {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 12px;
+  }
+
   .chat-empty__title {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+  }
+
+  .chat-empty__subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+  }
+
+  .chat-empty__chips {
+    gap: 6px;
+  }
+
+  .suggestion-chip {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .message {
+    max-width: 92%;
+    margin-bottom: 10px;
+  }
+
+  .message__bubble {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+
+  .message__avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .voice-panel {
+    padding: 8px 12px max(12px, env(safe-area-inset-bottom, 12px));
+  }
+
+  .audio-visualizer-container {
+    height: 24px;
+    margin-bottom: 2px;
   }
 
   .voice-orb-wrapper {
-    width: 96px;
-    height: 96px;
+    width: 80px;
+    height: 80px;
+    margin: 2px 0 4px;
   }
 
   .voice-orb {
-    width: 96px;
-    height: 96px;
+    width: 80px;
+    height: 80px;
+  }
+
+  .voice-orb svg {
+    max-width: 46%;
+    max-height: 46%;
   }
 
   .listening-pulse {
-    width: 96px;
-    height: 96px;
+    width: 80px;
+    height: 80px;
   }
 
   .thinking-spin-ring {
-    width: 108px;
-    height: 108px;
+    width: 90px;
+    height: 90px;
+    border-width: 2.5px;
+  }
+
+  .speaking-ripple {
+    inset: -8px;
+  }
+
+  .orb-soundbars {
+    height: 20px;
+    gap: 3px;
+  }
+
+  .soundbar {
+    width: 3px;
+  }
+
+  .soundbar--1 { height: 8px; }
+  .soundbar--2 { height: 14px; }
+  .soundbar--3 { height: 18px; }
+  .soundbar--4 { height: 12px; }
+  .soundbar--5 { height: 7px; }
+
+  .state-label-container {
+    margin-top: 0;
+    margin-bottom: 4px;
+    min-height: 18px;
+  }
+
+  .state-label {
+    font-size: 0.78rem;
+  }
+
+  .voice-controls-bar {
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .control-pill-btn {
+    padding: 3px 10px;
+    font-size: 0.72rem;
+  }
+
+  .text-input-form {
+    width: 100%;
+    max-width: 100%;
+    gap: 6px;
   }
 
   .text-input {
     height: 40px;
-    font-size: 0.85rem;
+    font-size: 16px; /* Prevents iOS Safari auto-zoom on input focus */
+    padding: 0 14px;
   }
 
   .send-button {
     height: 40px;
     padding: 0 14px;
+    font-size: 0.8rem;
+  }
+
+  .settings-drawer {
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+@media (max-width: 400px) {
+  .brand__title-full {
+    display: none;
+  }
+
+  .brand__title-short {
+    display: inline;
+  }
+
+  .header-btn-text {
+    display: none;
+  }
+
+  .voice-orb-wrapper {
+    width: 72px;
+    height: 72px;
+  }
+
+  .voice-orb {
+    width: 72px;
+    height: 72px;
+  }
+
+  .listening-pulse {
+    width: 72px;
+    height: 72px;
+  }
+
+  .thinking-spin-ring {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* Landscape or Short Height Mobile Screen */
+@media (max-height: 560px) {
+  .slim-header {
+    min-height: 40px;
+    padding: 4px 12px;
+  }
+
+  .audio-visualizer-container {
+    display: none;
+  }
+
+  .voice-orb-wrapper {
+    width: 56px;
+    height: 56px;
+    margin: 0 0 2px;
+  }
+
+  .voice-orb {
+    width: 56px;
+    height: 56px;
+  }
+
+  .listening-pulse {
+    width: 56px;
+    height: 56px;
+  }
+
+  .thinking-spin-ring {
+    width: 64px;
+    height: 64px;
+  }
+
+  .state-label-container {
+    display: none;
+  }
+
+  .voice-controls-bar {
+    margin-bottom: 4px;
+  }
+
+  .voice-panel {
+    padding: 6px 10px max(6px, env(safe-area-inset-bottom, 6px));
   }
 }
