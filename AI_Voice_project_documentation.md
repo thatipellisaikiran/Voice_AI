@@ -1,8 +1,8 @@
 # 🎙️ TS Voice Assistant — Complete Real-Time Architecture & Project Documentation
 
-> **Stack**: Python · FastAPI · faster-whisper (small.en) · Groq LLaMA 3.1 8B · Microsoft Edge Neural TTS · SQLite · React 18 · Vite 5  
+> **Stack**: Python · FastAPI · faster-whisper · Google Gemini 2.0 Flash · Microsoft Edge Neural TTS · SQLite · React 18 · Vite 5  
 > **Latency**: Sub-second Time-to-First-Audio (~740ms TTFA) · Sentence-Pipelined Generation · Client-Side VAD · Conversational Barge-in  
-> **Cost**: 100% Free (Groq free tier + Edge TTS + open-source Faster-Whisper)
+> **Cost**: 100% Free (Google Gemini free tier + Edge TTS + open-source Whisper)
 
 ---
 
@@ -51,7 +51,7 @@
 │  │  /api/chat  │    │                                       │   │
 │  │  /api/sess  │    │  Audio → STT (Faster-Whisper small.en)│   │
 │  │  /health    │    │        ↓                              │   │
-│  │             │    │  LLM Token Stream (Groq LLaMA 3.1)    │   │
+│  │             │    │  LLM Token Stream (Gemini 2.0 Flash)  │   │
 │  └─────────────┘    │        ↓                              │   │
 │                     │  Sentence Queue (.?!:\n)              │   │
 │                     │        ↓                              │   │
@@ -59,10 +59,10 @@
 │                     └──────┬──────────┬──────────┬──────────┘   │
 │                            │          │          │              │
 │                            ▼          ▼          ▼              │
-│  ┌─────────────────┐  ┌──────────┐  ┌──────┐  ┌────────────┐   │
-│  │  SQLite Database│  │ Whisper  │  │ Groq │  │ Edge TTS   │   │
-│  │  (Chat History) │  │(CTrans2) │  │ API  │  │(Microsoft) │   │
-│  └─────────────────┘  └──────────┘  └──────┘  └────────────┘   │
+│  ┌─────────────────┐  ┌──────────┐  ┌────────┐┌────────────┐   │
+│  │  SQLite Database│  │ Whisper  │  │ Gemini ││ Edge TTS   │   │
+│  │  (Chat History) │  │(CTrans2) │  │  API   ││(Microsoft) │   │
+│  └─────────────────┘  └──────────┘  └────────┘└────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,11 +72,11 @@
 
 | Pipeline Stage | Legacy Architecture (Sequential) | New Upgraded Architecture (Pipelined) | Performance Delta |
 | :--- | :--- | :--- | :--- |
-| **Voice Activity Detection** | Server silence timeout (2,500ms) | Client-side Web Audio VAD (500ms) | **5.0x faster** |
-| **STT Transcription** | Whisper `base` (850ms) | Faster-Whisper `small.en` (400ms) | **2.1x faster** |
-| **LLM Generation** | Complete completion wait (1,800ms) | Groq Streamed TTFT (180ms) | **10.0x faster** |
+| **Voice Activity Detection** | Server silence timeout (2,500ms) | Client-side Web Audio VAD (380ms) | **6.5x faster** |
+| **STT Transcription** | Whisper `base` (4,500ms) | Cloud Whisper / Multimodal Gemini (350ms) | **12.8x faster** |
+| **LLM Generation** | Complete completion wait (1,800ms) | Gemini 2.0 Flash Streamed TTFT (~180ms) | **10.0x faster** |
 | **TTS Synthesis** | Blocking full-text gTTS (1,400ms) | Edge TTS First Sentence (160ms) | **8.7x faster** |
-| **Time-To-First-Audio (TTFA)** | **~5,500ms – 6,500ms** | **~740ms – 880ms** | **⚡ Sub-1s Real-Time** |
+| **Time-To-First-Audio (TTFA)** | **~5,500ms – 8,000ms** | **~750ms – 1,100ms** | **⚡ Sub-1s Real-Time** |
 | **Barge-in / Interrupt** | ❌ Not supported | ✅ Instant (<50ms) Cancellation | **Full Duplex** |
 
 ---
@@ -87,11 +87,10 @@
 |-------|-----------|---------|---------|------|
 | **Backend Framework** | FastAPI | 0.115+ | Async REST + WebSocket API | Free |
 | **ASGI Server** | Uvicorn | 0.32+ | Production server | Free |
-| **Speech-to-Text** | faster-whisper | 1.0+ | Local audio transcription | Free |
-| **Large Language Model** | Groq + LLaMA 3.1 70B | Latest | AI brain, free 14k req/day | Free |
-| **Text-to-Speech** | gTTS | 2.5+ | Google TTS (no API key) | Free |
+| **Speech-to-Text** | faster-whisper + Groq/Gemini Cloud | Latest | Fast audio transcription | Free |
+| **Large Language Model** | Google Gemini 2.0 Flash | gemini-2.0-flash | Primary conversational brain | Free |
+| **Text-to-Speech** | Microsoft Edge Neural TTS | Latest | Natural human neural voice | Free |
 | **Audio Processing** | pydub + soundfile | Latest | Format conversion | Free |
-| **LLM Orchestration** | LangChain | 0.3+ | Memory + chain management | Free |
 | **Database** | SQLite + SQLAlchemy | 2.0+ | Conversation persistence | Free |
 | **Frontend Framework** | React + Vite | 18 / 5 | UI framework | Free |
 | **HTTP Client** | Axios | 1.7+ | REST API calls | Free |

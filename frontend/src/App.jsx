@@ -115,7 +115,7 @@ export default function App() {
    * Handles:
    * - 'partial_transcript': Live user speech token/chunk while speaking
    * - 'transcript': Final STT result from Faster-Whisper
-   * - 'token' / 'llm_token': Streamed LLM token from Groq LLaMA 3.1
+   * - 'token' / 'llm_token': Streamed LLM token from Google Gemini 2.0 Flash
    * - 'audio_start': New sentence synthesis initiated by Edge TTS
    * - 'audio': Synthesized base64 MP3 chunk from Edge TTS
    * - 'audio_end': Sentence synthesis complete
@@ -145,7 +145,7 @@ export default function App() {
           setStreamingContent('');
           break;
 
-        // Real-time LLM token streaming from Groq
+        // Real-time LLM token streaming from Google Gemini 2.0 Flash
         case 'token':
         case 'llm_token': {
           const tokenText = msg.text || msg.content || '';

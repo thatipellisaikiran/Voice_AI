@@ -98,8 +98,8 @@ export function SettingsDrawer({
           <h4>Voice & Audio</h4>
           <label className="setting-toggle">
             <div>
-              <span className="toggle-label">Speak AI Responses (gTTS)</span>
-              <p className="toggle-hint">Synthesize voice for AI replies automatically</p>
+              <span className="toggle-label">Speak AI Responses (Edge Neural TTS)</span>
+              <p className="toggle-hint">Synthesize natural voice for AI replies automatically</p>
             </div>
             <input
               type="checkbox"
@@ -205,7 +205,7 @@ export function SettingsDrawer({
               Status: <strong>{health.status}</strong>
             </span>
             <span className="health-detail">
-              Model: {health.whisper_model} · Groq LLaMA
+              Model: {health.whisper_model} · Gemini 2.0 Flash
             </span>
           </footer>
         )}

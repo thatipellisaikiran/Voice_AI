@@ -100,7 +100,44 @@ class STTService:
                 else:
                     logger.warning("Groq Whisper API returned status %s: %s", resp.status_code, resp.text)
         except Exception as exc:
-            logger.warning("Groq Cloud STT failed, falling back to local Whisper: %s", exc)
+            logger.warning("Groq Cloud STT failed, checking Gemini / local Whisper: %s", exc)
+
+        return ""
+
+    async def _transcribe_gemini_cloud(self, wav_bytes: bytes, language: str | None = "en") -> str:
+        """Fallback cloud speech transcription via Google Gemini Multimodal API."""
+        api_key = (settings.gemini_api_key or "").strip()
+        if not api_key or api_key == "your_gemini_api_key_here":
+            return ""
+
+        import base64
+        model = "gemini-2.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        wav_b64 = base64.b64encode(wav_bytes).decode("ascii")
+        prompt = f"Transcribe the following speech audio exactly as spoken in {language or 'English'}. Output ONLY the transcribed words with no commentary, no markdown, and no quotes."
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {"inline_data": {"mime_type": "audio/wav", "data": wav_b64}},
+                    ]
+                }
+            ],
+            "generationConfig": {"temperature": 0.0, "maxOutputTokens": 256},
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+                    if text:
+                        logger.info("Gemini Cloud STT transcription: %r", text)
+                        return text
+        except Exception as exc:
+            logger.warning("Gemini Cloud STT failed: %s", exc)
 
         return ""
 
@@ -173,6 +210,10 @@ class STTService:
 
         # 1. Try ultra-fast Groq Cloud Whisper (~200ms)
         cloud_text = await self._transcribe_groq_cloud(wav_bytes, language=language)
+        if not cloud_text:
+            # 2. Try Gemini Multimodal Cloud Audio Transcription
+            cloud_text = await self._transcribe_gemini_cloud(wav_bytes, language=language)
+
         if cloud_text:
             cleaned = self._clean_transcript(cloud_text, language or "en")
             if cleaned:
@@ -183,7 +224,7 @@ class STTService:
                     "duration": 0.0,
                 }
 
-        # 2. Local fallback if cloud was empty or unavailable
+        # 3. Local fallback if cloud was empty or unavailable
         temp_path: str | None = None
         try:
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_file:

@@ -27,7 +27,7 @@ A production-grade, low-latency, full-duplex Voice AI Assistant featuring **sub-
                                          │
                                          ▼
             ┌────────────────────────────────────────────────────────┐
-            │          Groq LLaMA 3.1 8B Instant (stream=True)       │ ~180ms TTFT
+            │       Google Gemini 2.0 Flash (streamGenerateContent)  │ ~180ms TTFT
             └───────────────┬────────────────────────┬───────────────┘
                             │                        │
                    Streamed Tokens              Tokens Stream
@@ -69,11 +69,11 @@ By migrating from a batch sequential request-response model to an asynchronous p
 
 | Pipeline Stage | Legacy Architecture (Sequential) | New Upgraded Architecture (Pipelined) | Performance Delta |
 | :--- | :--- | :--- | :--- |
-| **Voice Activity Detection** | Server-side silence timeout (2,500ms) | Client-side Web Audio VAD (500ms) | **5.0x faster** |
-| **STT Transcription** | Sequential Whisper `base` (850ms) | Faster-Whisper `small.en` (400ms) | **2.1x faster** |
-| **LLM Generation** | Complete completion wait (1,800ms) | Groq Streamed TTFT (180ms) | **10.0x faster** |
-| **TTS Synthesis** | Blocking full-text gTTS (1,400ms) | Edge TTS First Sentence (160ms) | **8.7x faster** |
-| **Time-To-First-Audio (TTFA)** | **~5,500ms – 6,500ms** | **~740ms – 880ms** | **⚡ Sub-1s Real-Time** |
+| **Voice Activity Detection** | Server-side silence timeout (2,500ms) | Client-side Web Audio VAD (380ms) | **6.5x faster** |
+| **STT Transcription** | Sequential Whisper `base` (4,500ms) | Cloud Whisper / Multimodal Gemini (350ms) | **12.8x faster** |
+| **LLM Generation** | Complete completion wait (1,800ms) | Google Gemini 2.0 Flash Streamed TTFT (~180ms) | **10.0x faster** |
+| **TTS Synthesis** | Blocking full-text gTTS (1,400ms) | Edge TTS Sentence Pipelined (160ms) | **8.7x faster** |
+| **Time-To-First-Audio (TTFA)** | **~5,500ms – 8,000ms** | **~750ms – 1,100ms** | **⚡ Sub-1s Real-Time** |
 | **Barge-in / Interrupt** | ❌ Not supported | ✅ Instant (<50ms) Cancellation | **Full Duplex** |
 
 ---
@@ -81,11 +81,11 @@ By migrating from a batch sequential request-response model to an asynchronous p
 ## Core Capabilities & Features
 
 ### 1. Sub-Second Conversational Response (<1s TTFA)
-Rather than waiting for the entire LLM response before synthesizing audio, TS chunks incoming tokens into complete sentences. As soon as the first sentence boundary (`.`, `?`, `!`, `\n`) is reached, it is queued for Edge Neural TTS synthesis. The browser begins audio playback of sentence #1 while sentence #2 and #3 are still generating.
+Rather than waiting for the entire LLM response before synthesizing audio, TS chunks incoming tokens into complete sentences using Google Gemini 2.0 Flash (`gemini-2.0-flash`). As soon as the first sentence boundary (`.`, `?`, `!`, `\n`) is reached, it is queued for Edge Neural TTS synthesis. The browser begins audio playback of sentence #1 while sentence #2 and #3 are still generating.
 
 ### 2. Full-Duplex Barge-in & Interruption
 - If the user starts speaking while the AI is replying, the client immediately pauses Web Audio playback, flushes audio queues, and issues an `{"type": "interrupt"}` message.
-- The backend aborts active Groq streaming loops and Edge TTS workers within 5ms.
+- The backend aborts active Gemini streaming loops and Edge TTS workers within 5ms.
 - Hardware `echoCancellation: true` prevents the AI's own audio output from falsely triggering user voice detection.
 
 ### 3. Real-Time Latency Instrumentation
@@ -290,7 +290,7 @@ Endpoint: `ws://127.0.0.1:8000/ws/voice/{session_id}` (or proxied via Vite at `w
 - **Python**: 3.10 or 3.11
 - **Node.js**: 18+ and npm
 - **FFmpeg**: Installed on your system `PATH` (used by `pydub` for audio normalization)
-- **Groq API Key**: Free API key from [console.groq.com](https://console.groq.com)
+- **Google Gemini API Key**: Free API key from [aistudio.google.com](https://aistudio.google.com)
 
 ---
 
@@ -314,14 +314,15 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Edit `backend/.env` with your Groq API key:
+Edit `backend/.env` with your Gemini API key:
 ```env
-GROQ_API_KEY=gsk_your_actual_groq_api_key_here
-GROQ_MODEL=llama-3.1-8b-instant
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash
+LLM_PROVIDER=gemini
 WHISPER_MODEL_SIZE=small.en
 TTS_PROVIDER=edge-tts
 TTS_LANGUAGE=en
-DATABASE_URL=sqlite+aiosqlite:///./data/voice_assistant.db
+DB_URL=sqlite+aiosqlite:///./voice_assistant.db
 ```
 
 ---

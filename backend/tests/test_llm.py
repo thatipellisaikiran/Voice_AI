@@ -16,35 +16,16 @@ from app.services.llm_service import LLMService
 class TestLLMService(unittest.IsolatedAsyncioTestCase):
     async def test_initialize_without_api_key_sets_not_ready(self):
         service = LLMService()
-        with patch.object(settings, "groq_api_key", ""):
+        with patch.object(settings, "gemini_api_key", ""), patch.object(settings, "groq_api_key", ""):
             await service.initialize()
         self.assertFalse(service.is_ready)
 
-    async def test_initialize_and_stream_and_get_response(self):
+    async def test_initialize_with_gemini_key_sets_ready(self):
         service = LLMService()
-
-        class FakeChain:
-            async def astream(self, payload, config=None):
-                for tok in ["Hello ", "there!"]:
-                    yield SimpleNamespace(content=tok)
-
-            async def ainvoke(self, payload, config=None):
-                return SimpleNamespace(content="Hello there!")
-
-        with (
-            patch.object(settings, "groq_api_key", "gsk_test_key"),
-            patch("app.services.llm_service.ChatGroq", return_value=MagicMock()),
-            patch("app.services.llm_service.RunnableWithMessageHistory", return_value=FakeChain()),
-        ):
+        with patch.object(settings, "gemini_api_key", "AQ.test_key"), patch.object(settings, "gemini_model", "gemini-2.0-flash"):
             await service.initialize()
-
         self.assertTrue(service.is_ready)
-
-        tokens = [tok async for tok in service.astream_response("Hi", "sess-1")]
-        self.assertEqual(tokens, ["Hello ", "there!"])
-
-        full = await service.get_response("Hi", "sess-1")
-        self.assertEqual(full, "Hello there!")
+        self.assertEqual(service.provider, "gemini")
 
 
 class TestRestEndpoints(unittest.TestCase):

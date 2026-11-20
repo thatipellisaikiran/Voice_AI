@@ -8,7 +8,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings."""
 
-    # Groq (Free LLM)
+    # LLM Settings (Google Gemini / Groq)
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
+    llm_provider: str = "gemini"  # gemini | groq
+
+    # Groq (Fallback / Alternative LLM & STT)
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
 

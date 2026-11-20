@@ -32,7 +32,7 @@ def main():
     )
 
     # Wait for backend to be ready
-    print("Waiting for backend services (Whisper, Groq, gTTS) to initialize...", flush=True)
+    print("Waiting for backend services (Whisper, Gemini 2.0 Flash, Edge TTS) to initialize...", flush=True)
     for _ in range(60):
         try:
             with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2) as resp:
